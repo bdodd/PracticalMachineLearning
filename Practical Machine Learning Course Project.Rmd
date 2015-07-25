@@ -1,0 +1,59 @@
+---
+title: "Practical Machine Learning Course Project"
+output: html_document
+---
+
+```{r, echo=FALSE}
+#save(model, test, file="/Users/briandodd/Documents/Predictive Analytics/Coursera/storedVariables.Rda")
+load(file="/Users/briandodd/Documents/Predictive Analytics/Coursera/storedVariables.Rda")
+library(caret)
+library(e1071)
+```
+
+##Summary
+Accelerometers recored measurements during different ways to perform barbell lifts.  The accelerometers were placed on the belt, forearm, arm, and dumbell of six participants.  The purpose of the data collection was to properly classify which class of activity the wearer was performing.  The raw data was cleaned in several preprocessing steps to produce a smaller yet more meaningful dataset.  The dataset was then split into a training and a test data set.  The training data was used to build a classifying model.  A random forest model was used which produced an in sample error rate of 0.85%.  That model was used to generate predictions using the test data set in order to estimate an out of sample error rate.  The estimated out of sample error rate was 0.99%.  
+
+##Preprocessing the data
+The raw dataset was simplified in three steps:
+         
+1. The identifiers ("user_name", "timestamp" variables, and "window" variables) were removed from the dataset as these are not be relevant in predicting the class of activity when a different person is using an activity recording device.  
+
+2. Several variables represented a single summary statistic over the recording window of an activity as opposed to a reading every 2.5s throughout the activity.  These variables (column names beginning with "min", "max", "avg", "var", "stddev", and "amplitude") were removed from the data set.  They would not be available in real time when trying to classify the type of activity that a user is performing.
+
+3. Variables that had little variance were also removed using the nearZeroVar function with its default settings.
+
+Removing these variables reduced the number of predictors from 152 to 52.  This has the added benefit of reducing the runtime needed to generate a model.
+
+##Subsetting the data
+The trimmed training dataset was split into two groups.  The first group ("train in code snippet below) served as the training data set for constructing a model.  The second group ("test in code snippet below) served as a test set to obtain an estimate of the model accuracy using out-of-sample data.  The function "createDataPartition()" from the caret package was used using a p value of 0.6 to allocate 60% of the dataset to the "train" subset adn 40% to the "test" subset.
+
+```{r, eval=FALSE}
+inTrain = createDataPartition(training$classe, p = .6)[[1]]
+train = training[ inTrain,]
+test = training[-inTrain,]
+```
+
+This generated a train dataset containing 11,776 observations and a test dataset containing 7,846 observations.
+
+##Model construction
+A random forest model was created using the caret package using the R code listed below.  Cross validation was used to generate an estimate of the model error.
+
+```{r, eval=FALSE}
+model<-train(classe~., model="rf", data=train, trControl=trainControl(method="cv", number=5), prox=TRUE)
+```
+
+The random forest model output is given below.  The estimated out of bag error rate is 1.00%.
+
+```{r, echo=FALSE}
+model
+```
+
+##Expected out of sample error
+The original training set was split into two subsets of data.  The first was used to create the model.  The second is used to estimate the out of sample error rate by using the second dataset as an input to the model and comparing the model output vs. the expected output.
+
+The code below generates the predicted results and generates a confusion matrix to compare the predicted vs. actual results.  This gives an estimated out of sample error rate of 0.97%.  
+
+```{r}
+output<-predict(model, test)
+confusionMatrix(output, test$classe)
+```
